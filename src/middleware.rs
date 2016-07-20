@@ -3,10 +3,10 @@ use request::HTTPRequest;
 use response::HTTPResponse;
 use regex::Regex;
 
-#[allow(dead_code)]
 pub enum MResult {
+    Ok,
     Next,
-    End
+    Err
 }
 
 pub struct Middleware {

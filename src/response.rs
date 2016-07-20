@@ -1,6 +1,6 @@
-
 use std::net::TcpStream;
 use std::collections::HashMap;
+use std::io;
 use std::io::Write;
 
 
@@ -23,15 +23,15 @@ impl<'a> HTTPResponse<'a> {
         self
     }
 
-    pub fn end(&self, mut stream: TcpStream) {
+    pub fn end(&self, mut stream: TcpStream) -> Result<(),io::Error>{
         let status_text = self.status_text();
-        stream.write_all(format!("HTTP/1.0 {} {}\r\n", self.status, status_text).as_bytes());
         let headtxt: String = self.headers.iter().map(&|(k, v)| format!("{}: {}\r\n", k, v)).collect();
 
-        stream.write_all(headtxt.as_bytes());
-        stream.write_all("\r\n".as_bytes());
-        stream.write_all(self.body);
-        stream.flush();
+        try!(stream.write_all(format!("HTTP/1.0 {} {}\r\n", self.status, status_text).as_bytes()));
+        try!(stream.write_all(headtxt.as_bytes()));
+        try!(stream.write_all("\r\n".as_bytes()));
+        try!(stream.write_all(self.body));
+        stream.flush()
     }
 
     pub fn status_text(&self) -> String {
