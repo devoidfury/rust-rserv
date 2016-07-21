@@ -4,7 +4,7 @@ use response::HTTPResponse;
 use regex::Regex;
 
 pub enum MResult {
-    Ok,
+    End,
     Next,
     Err
 }

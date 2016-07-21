@@ -1,3 +1,4 @@
+
 extern crate regex;
 
 mod request;
@@ -14,7 +15,7 @@ use server::RservApp;
 fn route_home(_: &HTTPRequest, res: &mut HTTPResponse) -> MResult {
     res.set_header("Content-Type", "text/plain");
     res.body = "Welcome! Try /nothere".as_bytes();
-    MResult::Ok
+    MResult::End
 }
 
 fn error_handler(_: &HTTPRequest, res: &mut HTTPResponse) {

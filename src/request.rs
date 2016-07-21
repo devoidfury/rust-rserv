@@ -51,11 +51,11 @@ impl HTTPRequest {
 
     pub fn new_empty() -> HTTPRequest {
         HTTPRequest {
-            body: "".to_string(),
+            body: String::new(),
             headers: HashMap::new(),
-            method: "".to_string(),
-            path: "".to_string(),
-            protocol: "".to_string(),
+            method: String::new(),
+            path: String::new(),
+            protocol: String::new(),
         }
     }
 
@@ -71,10 +71,7 @@ impl HTTPRequest {
             if bytes_read == 0 {
                 break;
             }
-
-            let (data, _) = bytes.split_at(bytes_read);
-            raw.extend_from_slice(data);
-
+            raw.extend_from_slice(&bytes[0 .. bytes_read]);
             if bytes_read < BUF_SIZE {
                 break;
             }

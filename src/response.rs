@@ -6,7 +6,7 @@ use std::io::Write;
 
 pub struct HTTPResponse<'a> {
     pub body: &'a [u8],
-    pub headers: HashMap<String, String>,
+    pub headers: HashMap<&'a str, &'a str>,
     pub status: u32,
     pub sent_headers: bool
 }
@@ -18,12 +18,12 @@ impl<'a> HTTPResponse<'a> {
         res
     }
 
-    pub fn set_header(&mut self, key: &str, val: &str) -> &mut HTTPResponse<'a> {
-        self.headers.entry(key.to_string()).or_insert(val.to_string());
+    pub fn set_header(&mut self, key: &'a str, val: &'a str) -> &mut HTTPResponse<'a> {
+        self.headers.entry(key).or_insert(val);
         self
     }
 
-    pub fn end(&self, mut stream: TcpStream) -> Result<(),io::Error>{
+    pub fn end(&self, mut stream: TcpStream) -> Result<(), io::Error>{
         let status_text = self.status_text();
         let headtxt: String = self.headers.iter().map(&|(k, v)| format!("{}: {}\r\n", k, v)).collect();
 
@@ -34,13 +34,13 @@ impl<'a> HTTPResponse<'a> {
         stream.flush()
     }
 
-    pub fn status_text(&self) -> String {
+    pub fn status_text(&self) -> &str {
         match self.status {
             200 => "OKAY",
             400 => "WHAT",
             404 => "NOPE",
             500 => "OOPS",
             _ => "???"
-        }.to_string()
+        }
     }
 }

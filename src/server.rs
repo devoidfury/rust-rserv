@@ -45,13 +45,12 @@ impl RservApp {
                 400 => "ERROR IN MESSAGE FORMAT",
                 404 => "NOTHING HERE, GO AWAY",
                 _ => "AN UNKNOWN ERROR OCCURRED. HOW ABOUT THAT?"
-            }.as_bytes()
+            }.as_bytes();
         }
     }
 }
 
 fn handle_incoming(app: Arc<RservApp>, mut stream: TcpStream) {
-    let mstack = &app.mstack;
     let _ = stream.set_nodelay(true);
 
     let mut res = HTTPResponse::new();
@@ -69,7 +68,7 @@ fn handle_incoming(app: Arc<RservApp>, mut stream: TcpStream) {
     if is_valid {
         let mut index: usize = 0;
         loop {
-            let route = match mstack.query(req.path.as_ref(), index) {
+            let route = match app.mstack.query(req.path.as_ref(), index) {
                 Some(r) => r,
                 None => {
                     res.status = 404;
@@ -80,7 +79,7 @@ fn handle_incoming(app: Arc<RservApp>, mut stream: TcpStream) {
 
             let handle = route.handle;
             index = match handle(&req, &mut res) {
-                MResult::Ok => break,
+                MResult::End => break,
                 MResult::Next => route.index,
                 MResult::Err => {
                     (app.error_handler)(&req, &mut res);
