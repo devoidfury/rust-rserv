@@ -5,3 +5,4 @@ authors = ["Tom Hunkapiller <tom@furycodes.com>"]
 
 [dependencies]
 regex = "0.1"
+num_cpus = "0.2"

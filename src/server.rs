@@ -1,10 +1,20 @@
-
+use std::iter;
 use std::thread;
 use std::sync::Arc;
-use std::net::{TcpListener, TcpStream};
+use std::net::{TcpListener, TcpStream, Shutdown};
 use request::HTTPRequest;
 use response::HTTPResponse;
 use middleware::{MiddlewareStack, MResult};
+use std::cmp;
+use num_cpus;
+
+use std::sync::mpsc::{channel, sync_channel, Sender};
+
+pub struct Worker {
+    jobs: usize,
+    tx: Sender<TcpStream>,
+    idx: usize
+}
 
 
 pub struct RservApp {
@@ -21,17 +31,59 @@ impl RservApp {
     }
 
     pub fn listen(self, address: &str) {
-        // accept connections and process them, spawning a new thread for each one
-        let listener = TcpListener::bind(address).unwrap();
         let shared_app = Arc::new(self);
 
+        let num_workers = cmp::max(num_cpus::get() - 1, 1);
+        println!("[main] starting {} workers", num_workers);
+
+        let mut workers = vec![];
+
+        // this channel is for tracking when threads finish a job
+        let (worker_done_tx, worker_done_rx) = channel();
+
+        for worker_idx in 0 .. num_workers {
+            // this channel, for each worker thread, is for sending the
+            // TcpStream from the main thread to the worker
+            let (worker_tx, worker_rx) = channel();
+
+            let app = shared_app.clone();
+            let done_tx = worker_done_tx.clone();
+
+            thread::spawn(move|| {
+                loop {
+                    let stream = worker_rx.recv().unwrap();
+                    println!("[worker {}] got stream, handling", worker_idx);
+                    handle_incoming(&app, stream);
+                    println!("[worker {}] done with a job", worker_idx);
+                    done_tx.send(worker_idx);
+                }
+            });
+            workers.push(Worker { jobs: 0, tx: worker_tx, idx: worker_idx })
+        }
+
+        let mut cycler = (0..num_workers).cycle();
+
+        let listener = TcpListener::bind(address).unwrap();
         for stream in listener.incoming() {
             match stream {
                 Ok(stream) => {
-                    let app = shared_app.clone();
-                    thread::spawn(move|| { // connection succeeded
-                        handle_incoming(app, stream)
-                    });
+                    println!("[main] got conn");
+
+                    println!("[main] sweep threads of completed jobs");
+                    loop {
+                        match worker_done_rx.try_recv() {
+                            Ok(worker_idx) => {
+                                println!("[main] worker {} finsihed a job", worker_idx);
+                                //workers[worker_idx].jobs -= 1;
+                            },
+                            _ => break
+                        };
+                    }
+
+                    let idx = cycler.next().unwrap();
+                    println!("[main] sending to {}", idx);
+                    //workers[idx].jobs += 1;
+                    workers[idx].tx.send(stream).unwrap();
                 }
                 Err(e) => { println!("Error: {}", e); }
             }
@@ -50,7 +102,7 @@ impl RservApp {
     }
 }
 
-fn handle_incoming(app: Arc<RservApp>, mut stream: TcpStream) {
+fn handle_incoming(app: &Arc<RservApp>, mut stream: TcpStream) {
     let _ = stream.set_nodelay(true);
 
     let mut res = HTTPResponse::new();
